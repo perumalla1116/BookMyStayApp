@@ -1,74 +1,129 @@
 import java.util.*;
 
+class Reservation {
+    private String guestName;
+    private String roomType;
+
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
+        this.roomType = roomType;
+    }
+
+    public String getGuestName() {
+        return guestName;
+    }
+
+    public String getRoomType() {
+        return roomType;
+    }
+}
+
+class BookingRequestQueue {
+    private Queue<Reservation> requestQueue;
+
+    public BookingRequestQueue() {
+        requestQueue = new LinkedList<>();
+    }
+
+    public void addRequest(Reservation reservation) {
+        requestQueue.offer(reservation);
+    }
+
+    public Reservation getNextRequest() {
+        return requestQueue.poll();
+    }
+
+    public boolean hasPendingRequests() {
+        return !requestQueue.isEmpty();
+    }
+}
+
+class RoomInventory {
+    private Map<String, Integer> inventory;
+
+    public RoomInventory() {
+        inventory = new HashMap<>();
+        inventory.put("Single", 2);
+        inventory.put("Double", 2);
+        inventory.put("Suite", 1);
+    }
+
+    public boolean isAvailable(String roomType) {
+        return inventory.getOrDefault(roomType, 0) > 0;
+    }
+
+    public void reduceRoom(String roomType) {
+        inventory.put(roomType, inventory.get(roomType) - 1);
+    }
+}
+
+class RoomAllocationService {
+    private Set<String> allocatedRoomIds;
+    private Map<String, Set<String>> assignedRoomsByType;
+
+    public RoomAllocationService() {
+        allocatedRoomIds = new HashSet<>();
+        assignedRoomsByType = new HashMap<>();
+    }
+
+    public void allocateRoom(Reservation reservation, RoomInventory inventory) {
+        String roomType = reservation.getRoomType();
+
+        if (!inventory.isAvailable(roomType)) {
+            System.out.println("No rooms available for " + reservation.getGuestName());
+            return;
+        }
+
+        String roomId = generateRoomId(roomType);
+
+        allocatedRoomIds.add(roomId);
+
+        assignedRoomsByType
+                .computeIfAbsent(roomType, k -> new HashSet<>())
+                .add(roomId);
+
+        inventory.reduceRoom(roomType);
+
+        System.out.println(
+                "Booking confirmed for Guest: " +
+                        reservation.getGuestName() +
+                        ", Room ID: " +
+                        roomId
+        );
+    }
+
+    private String generateRoomId(String roomType) {
+        int count = assignedRoomsByType
+                .getOrDefault(roomType, new HashSet<>())
+                .size() + 1;
+
+        String roomId = roomType + "-" + count;
+
+        while (allocatedRoomIds.contains(roomId)) {
+            count++;
+            roomId = roomType + "-" + count;
+        }
+
+        return roomId;
+    }
+}
+
 public class BookMyStayApp {
-
-    static int linearSearchFirst(String[] arr, String target) {
-        int comparisons = 0;
-        for (int i = 0; i < arr.length; i++) {
-            comparisons++;
-            if (arr[i].equals(target)) {
-                System.out.println("Linear First Index: " + i);
-                System.out.println("Comparisons: " + comparisons);
-                return i;
-            }
-        }
-        System.out.println("Not Found");
-        return -1;
-    }
-
-    static int linearSearchLast(String[] arr, String target) {
-        int comparisons = 0;
-        int index = -1;
-        for (int i = 0; i < arr.length; i++) {
-            comparisons++;
-            if (arr[i].equals(target)) {
-                index = i;
-            }
-        }
-        System.out.println("Linear Last Index: " + index);
-        System.out.println("Comparisons: " + comparisons);
-        return index;
-    }
-
-    static int binarySearch(String[] arr, String target) {
-        int l = 0, r = arr.length - 1, comparisons = 0;
-        while (l <= r) {
-            comparisons++;
-            int m = (l + r) / 2;
-            if (arr[m].equals(target)) {
-                System.out.println("Binary Index: " + m);
-                System.out.println("Comparisons: " + comparisons);
-                return m;
-            } else if (arr[m].compareTo(target) < 0) {
-                l = m + 1;
-            } else {
-                r = m - 1;
-            }
-        }
-        System.out.println("Not Found");
-        return -1;
-    }
-
-    static int countOccurrences(String[] arr, String target) {
-        int count = 0;
-        for (String s : arr) {
-            if (s.equals(target)) count++;
-        }
-        return count;
-    }
-
     public static void main(String[] args) {
 
-        String[] logs = {"accB","accA","accB","accC"};
+        System.out.println("Room Allocation Processing");
 
-        linearSearchFirst(logs, "accB");
-        linearSearchLast(logs, "accB");
+        BookingRequestQueue bookingQueue = new BookingRequestQueue();
+        RoomInventory inventory = new RoomInventory();
+        RoomAllocationService allocationService = new RoomAllocationService();
 
-        Arrays.sort(logs);
+        bookingQueue.addRequest(new Reservation("Abhi", "Single"));
+        bookingQueue.addRequest(new Reservation("Subha", "Single"));
+        bookingQueue.addRequest(new Reservation("Vanmathi", "Suite"));
 
-        binarySearch(logs, "accB");
-
-        int count = countOccurrences(logs, "accB");
-        System.out.println("Count: " + count);
+        while (bookingQueue.hasPendingRequests()) {
+            Reservation r = bookingQueue.getNextRequest();
+            allocationService.allocateRoom(r, inventory);
+        }
     }
 }
