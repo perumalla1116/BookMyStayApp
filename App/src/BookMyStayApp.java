@@ -1,91 +1,87 @@
+import java.io.*;
 import java.util.*;
-
-class InvalidBookingException extends Exception {
-    public InvalidBookingException(String message) {
-        super(message);
-    }
-}
 
 class RoomInventory {
     private Map<String, Integer> rooms = new HashMap<>();
 
     public RoomInventory() {
-        rooms.put("Single", 2);
-        rooms.put("Double", 2);
-        rooms.put("Suite", 1);
+        rooms.put("Single", 5);
+        rooms.put("Double", 3);
+        rooms.put("Suite", 2);
     }
 
-    public boolean isValidRoomType(String roomType) {
-        return rooms.containsKey(roomType);
+    public Map<String, Integer> getAll() {
+        return rooms;
     }
 
-    public boolean isAvailable(String roomType) {
-        return rooms.get(roomType) > 0;
-    }
-
-    public void bookRoom(String roomType) {
-        rooms.put(roomType, rooms.get(roomType) - 1);
+    public void setRoom(String type, int count) {
+        rooms.put(type, count);
     }
 }
 
-class ReservationValidator {
-    public void validate(String guestName, String roomType, RoomInventory inventory)
-            throws InvalidBookingException {
+class FilePersistenceService {
 
-        if (guestName == null || guestName.trim().isEmpty()) {
-            throw new InvalidBookingException("Guest name cannot be empty.");
-        }
-
-        if (!inventory.isValidRoomType(roomType)) {
-            throw new InvalidBookingException("Invalid room type selected.");
-        }
-
-        if (!inventory.isAvailable(roomType)) {
-            throw new InvalidBookingException("Room not available.");
+    public void saveInventory(RoomInventory inventory, String filePath) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            for (Map.Entry<String, Integer> entry : inventory.getAll().entrySet()) {
+                writer.write(entry.getKey() + "=" + entry.getValue());
+                writer.newLine();
+            }
+            System.out.println("Inventory saved successfully.");
+        } catch (IOException e) {
+            System.out.println("Error saving inventory.");
         }
     }
-}
 
-class BookingRequestQueue {
-    private Queue<String> queue = new LinkedList<>();
+    public void loadInventory(RoomInventory inventory, String filePath) {
+        File file = new File(filePath);
 
-    public void addRequest(String request) {
-        queue.offer(request);
-    }
+        if (!file.exists()) {
+            System.out.println("No valid inventory data found. Starting fresh.");
+            return;
+        }
 
-    public String processRequest() {
-        return queue.poll();
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            boolean valid = false;
+
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split("=");
+                if (parts.length == 2) {
+                    String type = parts[0];
+                    int count = Integer.parseInt(parts[1]);
+                    inventory.setRoom(type, count);
+                    valid = true;
+                }
+            }
+
+            if (!valid) {
+                System.out.println("No valid inventory data found. Starting fresh.");
+            }
+
+        } catch (Exception e) {
+            System.out.println("No valid inventory data found. Starting fresh.");
+        }
     }
 }
 
 public class BookMyStayApp {
     public static void main(String[] args) {
-        System.out.println("Booking Validation");
 
-        Scanner scanner = new Scanner(System.in);
+        System.out.println("System Recovery");
+
+        String filePath = "inventory.txt";
 
         RoomInventory inventory = new RoomInventory();
-        ReservationValidator validator = new ReservationValidator();
-        BookingRequestQueue bookingQueue = new BookingRequestQueue();
+        FilePersistenceService service = new FilePersistenceService();
 
-        try {
-            System.out.print("Enter guest name: ");
-            String guestName = scanner.nextLine();
+        service.loadInventory(inventory, filePath);
 
-            System.out.print("Enter room type (Single/Double/Suite): ");
-            String roomType = scanner.nextLine();
-
-            validator.validate(guestName, roomType, inventory);
-
-            inventory.bookRoom(roomType);
-            bookingQueue.addRequest(guestName + " booked " + roomType);
-
-            System.out.println("Booking successful!");
-
-        } catch (InvalidBookingException e) {
-            System.out.println("Booking failed: " + e.getMessage());
-        } finally {
-            scanner.close();
+        System.out.println("\nCurrent Inventory:");
+        for (Map.Entry<String, Integer> entry : inventory.getAll().entrySet()) {
+            System.out.println(entry.getKey() + ": " + entry.getValue());
         }
+
+        service.saveInventory(inventory, filePath);
     }
 }
